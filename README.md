@@ -1,4 +1,4 @@
-# 🌌 EchoVerse AI OS
+# 🌌 BURNO AI OS
 
 <div align="center">
 
