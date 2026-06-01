@@ -33,7 +33,7 @@
 ## 🏗️ Architecture
 
 ```
-EchoVerse AI OS
+BURNO AI OS
 ├── frontend/                    # Next.js 15 + TypeScript + TailwindCSS
 │   └── src/
 │       ├── app/                 # App Router pages
@@ -182,7 +182,7 @@ railway up
 
 ## 📄 License
 
-MIT © EchoVerse AI OS
+MIT © BURNO AI OS
 
 ---
 
