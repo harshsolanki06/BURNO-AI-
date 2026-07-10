@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Auth Routes
+BURNO AI OS — Auth Routes
 POST /api/auth/register, /api/auth/login, GET /api/auth/me
 """
 from fastapi import APIRouter, Depends, HTTPException, status

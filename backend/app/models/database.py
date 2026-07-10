@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Database Engine & Session
+BURNO AI OS — Database Engine & Session
 Async SQLAlchemy setup with SQLite (dev) / PostgreSQL (prod)
 """
 import uuid

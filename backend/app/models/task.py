@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Task ORM Model
+BURNO AI OS — Task ORM Model
 """
 from datetime import datetime, timezone
 from sqlalchemy import String, Text, Integer, DateTime, ForeignKey

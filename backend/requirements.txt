@@ -9,14 +9,20 @@ python-multipart==0.0.12
 pydantic==2.8.0
 pydantic-settings==2.5.0
 sqlalchemy==2.0.35
-asyncpg==0.29.0
-chromadb==0.5.0
-playwright==1.47.0
-pyautogui==0.9.54
-opencv-python==4.10.0.84
-Pillow==10.4.0
-sentence-transformers==3.1.1
+aiosqlite==0.20.0
 psutil==6.0.0
 aiofiles==24.1.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+PyPDF2>=3.0.0
+python-docx>=1.1.0
+
+# ── Optional heavy deps — install manually when needed ──────────────────────
+# openai==1.50.0          # for OpenAI GPT fallback
+# asyncpg==0.29.0         # for PostgreSQL (production)
+# chromadb==0.5.0         # for vector memory (ChromaDB)
+# playwright==1.47.0      # for browser automation
+# pyautogui==0.9.54       # for desktop automation
+# opencv-python==4.10.0.84 # for vision features
+# Pillow==10.4.0          # for image processing
+# sentence-transformers==3.1.1  # for semantic embeddings

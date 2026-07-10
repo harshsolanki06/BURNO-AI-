@@ -28,17 +28,18 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS
+    # CORS — open in production to support dynamic Vercel preview URLs
+    cors_origins = ["*"] if settings.ALLOW_ALL_ORIGINS else settings.origins
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.origins,
-        allow_credentials=True,
+        allow_origins=cors_origins,
+        allow_credentials=not settings.ALLOW_ALL_ORIGINS,  # credentials can't be sent with wildcard
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
     # Register routers
-    from app.routes import chat, agents, auth, tasks, memory, system, automation
+    from app.routes import chat, agents, auth, tasks, memory, system, automation, activity, voice, knowledge, workflows
     application.include_router(system.router)
     application.include_router(auth.router)
     application.include_router(chat.router)
@@ -46,6 +47,10 @@ def create_app() -> FastAPI:
     application.include_router(tasks.router)
     application.include_router(memory.router)
     application.include_router(automation.router)
+    application.include_router(activity.router)
+    application.include_router(voice.router)
+    application.include_router(knowledge.router)
+    application.include_router(workflows.router)
 
     # WebSocket
     from app.ws.manager import register_ws

@@ -1,55 +1,50 @@
-# ================================
-# BURNO AI OS — .gitignore
-# ================================
-
-# ─── Environment / Secrets ────────────────────────────────────────────────────
-.env
-.env.local
-.env.*.local
-# Keep the example template
-!.env.example
-
-# ─── Python ───────────────────────────────────────────────────────────────────
+# ─── Python / Backend ─────────────────────────────────────────────────────────
+venv/
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
 *.pyd
-*.so
-*.egg
 *.egg-info/
 dist/
 build/
-venv/
-.venv/
-env/
-pip-wheel-metadata/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-htmlcov/
-.coverage
-coverage.xml
-
-# ─── Database (local dev) ─────────────────────────────────────────────────────
+.eggs/
 *.db
 *.sqlite
 *.sqlite3
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Backend secrets — keep local only
+backend/.env
+# but allow the example + railway template
+!backend/.env.example
+!backend/.env.railway
 
 # ─── Node / Frontend ──────────────────────────────────────────────────────────
 node_modules/
-.next/
-.nuxt/
-dist/
-.cache/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+# keep .env.local and .env.production templates
+!frontend/.env.local
+!frontend/.env.production
 
-# ─── OS / IDE ─────────────────────────────────────────────────────────────────
+# ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
 .idea/
-.vscode/
+.vscode/settings.json
 *.swp
 *.swo
+
+# ─── Test / temp files ────────────────────────────────────────────────────────
+backend/test_*.py
+backend/patch_*.py
+backend/*.log
+
+# ─── Uploaded knowledge docs (these are user data, not code) ──────────────────
+backend/uploads/

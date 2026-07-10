@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Application Entrypoint
+BURNO AI OS — Application Entrypoint
 """
 from app import create_app
 from app.core.config import settings

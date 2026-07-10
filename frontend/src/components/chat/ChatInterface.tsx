@@ -79,11 +79,12 @@ function MessageContent({ content }: { content: string }) {
 }
 
 // ─── Single message bubble ────────────────────────────────────────────────────
-function MessageBubble({ msg }: { msg: Message }) {
+function MessageBubble({ msg, isStreaming }: { msg: Message; isStreaming?: boolean }) {
   const [copied, setCopied] = useState(false);
   const isUser   = msg.role === 'user';
   const isSystem = msg.role === 'system';
   const color    = msg.agentType ? (AGENT_COLORS[msg.agentType] || '#00d4ff') : '#00d4ff';
+  const thinking = msg.agentName === 'Thinking…' && !msg.content;
 
   const copy = async () => {
     await navigator.clipboard.writeText(msg.content);
@@ -124,7 +125,12 @@ function MessageBubble({ msg }: { msg: Message }) {
         {/* Agent name */}
         {msg.agentName && (
           <div className="flex items-center gap-1.5 mb-1.5">
-            <div className="w-1 h-1 rounded-full" style={{ background: color }} />
+            <motion.div
+              className="w-1 h-1 rounded-full"
+              style={{ background: color }}
+              animate={isStreaming ? { opacity: [0.3, 1, 0.3] } : {}}
+              transition={{ duration: 1, repeat: Infinity }}
+            />
             <span className="label" style={{ color, fontSize: 9, letterSpacing: '0.12em' }}>
               {msg.agentName.toUpperCase()}
             </span>
@@ -159,10 +165,36 @@ function MessageBubble({ msg }: { msg: Message }) {
             }} />
           )}
 
-          {isUser || isSystem
-            ? <p className="text-sm leading-relaxed">{msg.content}</p>
-            : <MessageContent content={msg.content} />
-          }
+          {/* Thinking indicator */}
+          {thinking ? (
+            <div className="flex items-center gap-1.5">
+              {[0, 1, 2].map(i => (
+                <motion.div key={i} className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: `${color}90` }}
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
+                />
+              ))}
+              <span className="label ml-1" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                Processing…
+              </span>
+            </div>
+          ) : isUser || isSystem ? (
+            <p className="text-sm leading-relaxed">{msg.content}</p>
+          ) : (
+            <div>
+              <MessageContent content={msg.content} />
+              {/* Blinking cursor while streaming */}
+              {isStreaming && (
+                <motion.span
+                  className="inline-block ml-0.5 w-0.5 h-4 rounded-full align-middle"
+                  style={{ background: color }}
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ duration: 0.5, repeat: Infinity }}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Meta row */}
@@ -284,7 +316,7 @@ export default function ChatInterface({ messages, onSendMessage, isProcessing, o
           </div>
           <div>
             <h3 className="text-sm font-semibold" style={{ color: '#e2eeff' }}>BURNO AI</h3>
-            <p className="label mt-0.5">Multi-agent • Claude Sonnet 4</p>
+            <p className="label mt-0.5">Multi-agent • 6 Agents Online</p>
           </div>
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full ml-1"
             style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.14)' }}>
@@ -307,13 +339,15 @@ export default function ChatInterface({ messages, onSendMessage, isProcessing, o
         </div>
       </div>
 
+
       {/* ── Messages ───────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5 scroll-y">
         <AnimatePresence initial={false}>
-          {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
-        </AnimatePresence>
-        <AnimatePresence>
-          {isProcessing && <TypingIndicator />}
+          {messages.map((msg, idx) => {
+            const isLast = idx === messages.length - 1;
+            const streaming = isLast && isProcessing && msg.role === 'assistant';
+            return <MessageBubble key={msg.id} msg={msg} isStreaming={streaming} />;
+          })}
         </AnimatePresence>
 
         {/* Suggestion chips — only when empty */}
@@ -391,7 +425,7 @@ export default function ChatInterface({ messages, onSendMessage, isProcessing, o
         </div>
 
         <p className="label mt-2 text-center" style={{ fontSize: 9 }}>
-          Powered by Claude Sonnet 4 · Multi-agent routing active · 6 agents online
+          BURNO AI OS · Multi-agent routing · 6 specialists online · Shift+Enter for new line
         </p>
       </div>
     </motion.div>

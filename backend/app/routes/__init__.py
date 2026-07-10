@@ -1,1 +1,1 @@
-# EchoVerse AI OS — Routes package
+# BURNO AI OS — Routes package

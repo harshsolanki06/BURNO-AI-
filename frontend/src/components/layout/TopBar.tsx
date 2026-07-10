@@ -102,7 +102,7 @@ export default function TopBar({ status }: TopBarProps) {
             ref={searchRef}
             className="input"
             style={{ paddingLeft: 36, paddingRight: 48, paddingTop: 8, paddingBottom: 8, fontSize: 12 }}
-            placeholder="Ask EchoVerse anything…"
+            placeholder="Ask BURNO anything…"
             value={searchVal}
             onChange={e => setSearchVal(e.target.value)}
             onFocus={() => setSearchOpen(true)}
@@ -137,7 +137,7 @@ export default function TopBar({ status }: TopBarProps) {
         {/* AI Model badge */}
         <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)' }}>
           <div className="w-1.5 h-1.5 rounded-full bg-violet-400" style={{ boxShadow: '0 0 6px rgba(139,92,246,0.7)' }} />
-          <span className="label" style={{ color: 'rgba(139,92,246,0.9)', letterSpacing: '0.1em' }}>CLAUDE 4</span>
+          <span className="label" style={{ color: 'rgba(139,92,246,0.9)', letterSpacing: '0.1em' }}>GROQ LLAMA 3</span>
         </div>
 
         {/* WS status */}

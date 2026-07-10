@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Security Utilities
+BURNO AI OS — Security Utilities
 JWT token creation and verification, password hashing
 """
 from datetime import datetime, timedelta, timezone

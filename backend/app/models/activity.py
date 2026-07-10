@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Activity Log ORM Model
+BURNO AI OS — Activity Log ORM Model
 """
 from datetime import datetime, timezone
 from sqlalchemy import String, Text, DateTime, ForeignKey

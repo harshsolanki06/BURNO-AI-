@@ -11,18 +11,18 @@ const NAV_GROUPS = [
   {
     label: 'Core',
     items: [
-      { id: 'dashboard', label: 'Dashboard',      icon: LayoutDashboard, color: '#00d4ff' },
-      { id: 'chat',      label: 'AI Chat',         icon: Brain,           color: '#8b5cf6' },
-      { id: 'voice',     label: 'Voice',           icon: Mic,             color: '#10b981' },
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: '#00d4ff' },
+      { id: 'chat',      label: 'AI Chat',   icon: Brain,           color: '#8b5cf6' },
+      { id: 'voice',     label: 'Voice',     icon: Mic,             color: '#10b981' },
     ],
   },
   {
-    label: 'Agents',
+    label: 'Intelligence',
     items: [
-      { id: 'agents',     label: 'AI Agents',    icon: Activity,  color: '#6366f1' },
-      { id: 'vision',     label: 'Vision',       icon: Eye,       color: '#f59e0b' },
-      { id: 'automation', label: 'Automation',   icon: Zap,       color: '#f97316' },
-      { id: 'memory',     label: 'Memory',       icon: Database,  color: '#3b82f6' },
+      { id: 'agents',     label: 'Agents',    icon: Activity, color: '#6366f1' },
+      { id: 'memory',     label: 'Memory',    icon: Database, color: '#3b82f6' },
+      { id: 'knowledge',  label: 'Knowledge', icon: Eye,      color: '#f59e0b' },
+      { id: 'workflows',  label: 'Workflows', icon: Zap,      color: '#f97316' },
     ],
   },
   {
@@ -90,7 +90,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             className="orbitron text-sm font-black"
             style={{ color: '#00d4ff', textShadow: '0 0 12px rgba(0,212,255,0.6)' }}
           >
-            E
+            B
           </span>
           {/* Pulse ring */}
           <motion.div
@@ -110,8 +110,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <p className="orbitron text-xs font-bold neon-text-cyan whitespace-nowrap">ECHOVERSE</p>
-              <p className="label" style={{ color: 'rgba(74,96,128,0.7)', marginTop: 1 }}>AI OS v2.0</p>
+              <p className="orbitron text-xs font-bold neon-text-cyan whitespace-nowrap">BURNO AI</p>
+              <p className="label" style={{ color: 'rgba(74,96,128,0.7)', marginTop: 1 }}>Intelligence Engine</p>
             </motion.div>
           )}
         </AnimatePresence>

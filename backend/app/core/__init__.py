@@ -1,1 +1,1 @@
-# EchoVerse AI OS — Core package
+# BURNO AI OS — Core package

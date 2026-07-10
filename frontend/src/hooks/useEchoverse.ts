@@ -5,11 +5,13 @@
  * useChat:         Sends messages to POST /api/chat and manages conversation state
  * useVoice:        Voice visualizer (simulated until STT/TTS endpoints are built)
  * useSystemStatus: Polls GET /api/system/status for real system metrics
+ * useActivity:     Polls GET /api/activity for live activity feed data
  */
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, VoiceState, SystemStatus, AgentType } from '@/types';
+import { Message, VoiceState, SystemStatus, AgentType, ActivityItem } from '@/types';
 import { generateId } from '@/lib/utils';
 import { chatSend, getSystemStatus as fetchSystemStatus } from '@/lib/api';
+import { SAMPLE_ACTIVITY, API_BASE_URL } from '@/lib/constants';
 
 // ─── Agent display names ──────────────────────────────────────────────────────
 const AGENT_NAMES: Record<string, string> = {
@@ -21,14 +23,14 @@ const AGENT_NAMES: Record<string, string> = {
   memory: 'Memory Agent',
 };
 
-// ─── useChat ──────────────────────────────────────────────────────────────────
+// ─── useChat (streaming — tokens appear word-by-word) ────────────────────────
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: generateId(),
       role: 'system',
       content:
-        'EchoVerse AI OS v2.0 initialized. All 6 agents online. Voice interface ready. Type a message or use a Quick Action to begin.',
+        'BURNO AI OS v2.0 initialized. All 6 agents online. Ready to assist — ask me anything!',
       timestamp: new Date().toISOString(),
     },
   ]);
@@ -36,69 +38,156 @@ export function useChat() {
   const sessionIdRef = useRef<string | null>(null);
 
   const sendMessage = useCallback(async (content: string) => {
-    // Add user message to the UI immediately
+    if (!content.trim() || isProcessing) return;
+
+    // Add user message immediately
     const userMsg: Message = {
       id: generateId(),
       role: 'user',
       content,
       timestamp: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages(prev => [...prev, userMsg]);
     setIsProcessing(true);
 
+    // Placeholder for the streaming assistant reply
+    const streamId = generateId();
+    const streamMsg: Message = {
+      id: streamId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toISOString(),
+      agentType: undefined,
+      agentName: 'Thinking…',
+    };
+    setMessages(prev => [...prev, streamMsg]);
+
     try {
-      // Call the real backend API
-      const response = await chatSend(
-        content,
-        sessionIdRef.current || undefined,
-      );
+      const token = typeof window !== 'undefined'
+        ? localStorage.getItem('echoverse_token')
+        : null;
 
-      // Store the session ID for conversation continuity
-      if (!sessionIdRef.current) {
-        sessionIdRef.current = response.session_id;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: content,
+          session_id: sessionIdRef.current || undefined,
+        }),
+      });
+
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const evt = JSON.parse(line.slice(6));
+
+            if (evt.error) {
+              setMessages(prev => prev.map(m =>
+                m.id === streamId
+                  ? { ...m, content: `Error: ${evt.error}`, agentName: 'Error' }
+                  : m
+              ));
+              break;
+            }
+
+            if (evt.token !== undefined) {
+              accumulated += evt.token;
+              const snap = accumulated;
+              setMessages(prev => prev.map(m =>
+                m.id === streamId ? { ...m, content: snap } : m
+              ));
+            }
+
+            if (evt.done) {
+              // Save session ID for conversation continuity
+              if (!sessionIdRef.current) sessionIdRef.current = evt.session_id;
+
+              setMessages(prev => prev.map(m =>
+                m.id === streamId
+                  ? {
+                      ...m,
+                      id: evt.id,
+                      agentType: evt.agent_type as AgentType,
+                      agentName: evt.agent_name,
+                      timestamp: evt.timestamp,
+                      metadata: {
+                        tokens: evt.tokens,
+                        processingTime: evt.processing_time_ms,
+                        model: 'burno-multi-agent',
+                      },
+                    }
+                  : m
+              ));
+            }
+          } catch {
+            // Ignore malformed SSE lines
+          }
+        }
       }
-
-      // Build the assistant message from the API response
-      const aiMsg: Message = {
-        id: response.id,
-        role: 'assistant',
-        content: response.content,
-        timestamp: response.timestamp,
-        agentType: response.agent_type as AgentType,
-        agentName: response.agent_name || AGENT_NAMES[response.agent_type] || 'Agent',
-        metadata: {
-          tokens: response.tokens,
-          processingTime: response.processing_time_ms,
-          model: 'claude-sonnet-4-20250514',
-        },
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
-      // Show error as a system message so the user knows what happened
-      const errMsg: Message = {
-        id: generateId(),
-        role: 'system',
-        content: `⚠️ ${error instanceof Error ? error.message : 'Failed to reach the backend. Make sure the server is running on http://localhost:8000'}`,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errMsg]);
+      // Streaming failed — fall back to regular endpoint
+      try {
+        const resp = await chatSend(content, sessionIdRef.current || undefined);
+        if (!sessionIdRef.current) sessionIdRef.current = resp.session_id;
+
+        setMessages(prev => prev.map(m =>
+          m.id === streamId
+            ? {
+                ...m,
+                id: resp.id,
+                content: resp.content,
+                agentType: resp.agent_type as AgentType,
+                agentName: resp.agent_name,
+                timestamp: resp.timestamp,
+                metadata: {
+                  tokens: resp.tokens,
+                  processingTime: resp.processing_time_ms,
+                  model: 'burno-multi-agent',
+                },
+              }
+            : m
+        ));
+      } catch (fallbackErr) {
+        const errText = fallbackErr instanceof Error
+          ? fallbackErr.message
+          : 'Could not reach the backend. Is the server running on port 8000?';
+        setMessages(prev => prev.map(m =>
+          m.id === streamId
+            ? { ...m, content: `⚠️ ${errText}`, agentName: 'Error' }
+            : m
+        ));
+      }
     } finally {
       setIsProcessing(false);
     }
-  }, []);
+  }, [isProcessing]);
 
   const clearMessages = useCallback(() => {
-    // Reset session so the next conversation gets a fresh ID
     sessionIdRef.current = null;
-    setMessages([
-      {
-        id: generateId(),
-        role: 'system',
-        content: 'Conversation cleared. EchoVerse ready — how can I help?',
-        timestamp: new Date().toISOString(),
-      },
-    ]);
+    setMessages([{
+      id: generateId(),
+      role: 'system',
+      content: 'Conversation cleared. BURNO AI ready — ask me anything!',
+      timestamp: new Date().toISOString(),
+    }]);
   }, []);
 
   return { messages, sendMessage, isProcessing, clearMessages };
@@ -196,4 +285,39 @@ export function useSystemStatus() {
   }, []);
 
   return status;
+}
+
+// ─── useActivity — polls GET /api/activity every 10s, falls back to sample data
+export function useActivity() {
+  const [items, setItems] = useState<ActivityItem[]>(SAMPLE_ACTIVITY);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function poll() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/activity?limit=20`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+        // If the backend has real items, use them; otherwise keep sample data
+        if (data.items && data.items.length > 0) {
+          setItems(data.items as ActivityItem[]);
+        }
+      } catch {
+        // Keep last known values — don't crash on network error
+      }
+    }
+
+    // Initial fetch immediately
+    poll();
+    const id = setInterval(poll, 10000);
+
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  return items;
 }

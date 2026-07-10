@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Automation Routes
+BURNO AI OS — Automation Routes
 POST /api/automation/execute
 """
 from datetime import datetime, timezone

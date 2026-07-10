@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Task Routes
+BURNO AI OS — Task Routes
 CRUD operations for agent tasks
 """
 from datetime import datetime, timezone

@@ -1,5 +1,5 @@
 """
-EchoVerse AI OS — Dependency Injection
+BURNO AI OS — Dependency Injection
 FastAPI dependencies for database sessions and authentication
 """
 from typing import AsyncGenerator, Optional
