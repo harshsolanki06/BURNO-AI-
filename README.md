@@ -187,7 +187,7 @@ MIT © BURNO AI OS
 ---
 
 <div align="center">
-Built with ❤️ by an elite AI engineer
+Built with ❤️ by an AI engineer
 <br/>
 <strong>BURNO AI OS — Where Intelligence Meets Interface</strong>
 </div>
