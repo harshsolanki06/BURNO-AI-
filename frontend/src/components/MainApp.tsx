@@ -3,74 +3,66 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/layout/Sidebar';
-import TopBar from '@/components/layout/TopBar';
+import BottomDock from '@/components/layout/BottomDock';
+import RightPanel from '@/components/layout/RightPanel';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
+import HomeScreen from '@/components/dashboard/HomeScreen';
 import ChatInterface from '@/components/chat/ChatInterface';
-import HeroPanel from '@/components/dashboard/HeroPanel';
-import QuickActions from '@/components/dashboard/QuickActions';
-import ActivityFeed from '@/components/dashboard/ActivityFeed';
-import SystemStats from '@/components/dashboard/SystemStats';
 import LiveAgentsPanel from '@/components/dashboard/LiveAgentsPanel';
 import MemoryPanel from '@/components/dashboard/MemoryPanel';
 import VoicePanel from '@/components/voice/VoicePanel';
 import KnowledgePanel from '@/components/knowledge/KnowledgePanel';
 import WorkflowPanel from '@/components/workflows/WorkflowPanel';
 import { useChat, useSystemStatus, useActivity } from '@/hooks/useEchoverse';
-import { QUICK_ACTIONS } from '@/lib/constants';
+import SettingsPanel from '@/components/settings/SettingsPanel';
 
-// ─── Dashboard ───────────────────────────────────────────────────────────────
-function DashboardView({ onSendMessage, activityItems }: {
-  onSendMessage: (msg: string) => void;
-  activityItems: import('@/types').ActivityItem[];
-}) {
-  const status = useSystemStatus();
-  return (
-    <div className="space-y-5">
-      <HeroPanel />
-      <div className="grid gap-5" style={{ gridTemplateColumns: '1fr 380px' }}>
-        <QuickActions actions={QUICK_ACTIONS} onAction={onSendMessage} />
-        <div className="flex flex-col gap-5">
-          <SystemStats status={status} />
-          <ActivityFeed items={activityItems} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Placeholder ─────────────────────────────────────────────────────────────
-const PLACEHOLDERS: Record<string, { title: string; description: string; icon: string; soon?: boolean }> = {
-  knowledge:  { title: 'Knowledge Base',    icon: '📚', description: 'Upload documents, PDFs, and articles. BURNO indexes them for semantic search and recall.', soon: true },
-  workflows:  { title: 'Workflow Builder',  icon: '⚡', description: 'Chain AI actions into automated workflows — research + summarize + store to memory.', soon: true },
-  automation: { title: 'Automation Engine', icon: '🤖', description: 'Browser control, form filling, and multi-step workflow execution with Playwright.', soon: true },
-  analytics:  { title: 'Analytics Center',  icon: '📊', description: 'Real-time charts of AI usage, agent performance, and system metrics.', soon: true },
-  settings:   { title: 'Settings',          icon: '⚙️', description: 'Configure API keys, voice preferences, theme, and agent behavior.', soon: false },
+// ─── Placeholder View (coming soon) ───────────────────────────────────────────
+const COMING_SOON: Record<string, { title: string; icon: string; desc: string; color: string }> = {
+  research:   { title: 'Research Mode',     icon: '🔍', desc: 'Web research with sources, citations, and mind maps.', color: '#06b6d4' },
+  automation: { title: 'Automation Studio', icon: '🤖', desc: 'Drag-and-drop workflow builder with browser control.', color: '#f97316' },
+  settings:   { title: 'Settings',          icon: '⚙️', desc: 'Configure AI providers, voice, themes, and more.', color: '#6366f1' },
+  analytics:  { title: 'Analytics',         icon: '📊', desc: 'Real-time charts of AI usage and agent performance.', color: '#8b5cf6' },
 };
 
 function PlaceholderView({ id }: { id: string }) {
-  const cfg = PLACEHOLDERS[id] || { title: id, icon: '🔧', description: 'Coming soon.' };
+  const cfg = COMING_SOON[id] || { title: id, icon: '🔧', desc: 'Coming soon.', color: '#00d4ff' };
   return (
-    <motion.div className="glass-panel p-16 text-center relative overflow-hidden"
-      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-      <div className="hud-corner-tl" /><div className="hud-corner-tr" />
-      <div className="hud-corner-bl" /><div className="hud-corner-br" />
-      <div className="hud-scanline" />
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0,212,255,0.03), transparent)' }} />
-      <motion.div className="text-5xl mb-6" animate={{ y: [0, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
+    <motion.div
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+      style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: '70vh', gap: 20,
+      }}
+    >
+      <motion.div
+        animate={{ scale: [1, 1.1, 1], y: [0, -10, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{
+          width: 90, height: 90, borderRadius: 26, fontSize: 40,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: `${cfg.color}10`, border: `1px solid ${cfg.color}20`,
+          boxShadow: `0 0 40px ${cfg.color}20`,
+        }}
+      >
         {cfg.icon}
       </motion.div>
-      <h2 className="text-2xl font-bold gradient-text mb-3" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>{cfg.title}</h2>
-      <p className="text-sm mx-auto mb-8" style={{ color: 'var(--text-secondary)', maxWidth: 420, lineHeight: 1.7 }}>{cfg.description}</p>
-      {cfg.soon && (
-        <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full"
-          style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.18)' }}>
-          <motion.div className="w-1.5 h-1.5 rounded-full"
-            style={{ background: '#00d4ff', boxShadow: '0 0 6px rgba(0,212,255,0.8)' }}
-            animate={{ scale: [1, 1.4, 1] }} transition={{ duration: 2, repeat: Infinity }} />
-          <span className="label-accent">Coming in next update</span>
-        </div>
-      )}
+
+      <div style={{ textAlign: 'center' }}>
+        <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 26, fontWeight: 700, color: '#e2eeff', marginBottom: 8 }}>
+          {cfg.title}
+        </h2>
+        <p style={{ fontSize: 14, color: '#5a7599', maxWidth: 380, lineHeight: 1.7 }}>{cfg.desc}</p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: 100, background: `${cfg.color}08`, border: `1px solid ${cfg.color}20` }}>
+        <motion.div
+          animate={{ scale: [1, 1.4, 1] }} transition={{ duration: 2, repeat: Infinity }}
+          style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.color, boxShadow: `0 0 8px ${cfg.color}` }}
+        />
+        <span style={{ fontSize: 11, color: cfg.color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          Coming in next update
+        </span>
+      </div>
     </motion.div>
   );
 }
@@ -80,31 +72,20 @@ export default function MainApp() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { messages, sendMessage, isProcessing, clearMessages } = useChat();
   const status = useSystemStatus();
-  const activityItems = useActivity();
 
-  const handleQuickAction = (command: string) => {
+  const handleQuickAction = (msg: string) => {
     setActiveTab('chat');
-    const prompts: Record<string, string> = {
-      search:     'Search the web for the latest breakthroughs in AI this week.',
-      code:       'Generate a Python function to sort a list of dictionaries by a key.',
-      browser:    'Open my browser and navigate to GitHub.',
-      screenshot: 'Analyze my current screen and describe everything you see.',
-      task:       'Create a new task for my project planning backlog.',
-      recall:     'What were we discussing in our last session? Recall context.',
-      voice:      'Activate voice mode',
-      workflow:   'Run my morning workflow automation sequence.',
-    };
-    sendMessage(prompts[command] || `Execute: ${command}`);
+    sendMessage(msg);
   };
 
   const renderView = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardView onSendMessage={handleQuickAction} activityItems={activityItems} />;
+        return <HomeScreen onSendMessage={handleQuickAction} onTabChange={setActiveTab} />;
 
       case 'chat':
         return (
-          <div style={{ height: 'calc(100vh - 9rem)' }}>
+          <div style={{ height: 'calc(100vh - 120px)', padding: '0 8px' }}>
             <ChatInterface
               messages={messages}
               onSendMessage={sendMessage}
@@ -129,33 +110,93 @@ export default function MainApp() {
       case 'workflows':
         return <WorkflowPanel />;
 
+      case 'settings':
+        return <SettingsPanel />;
+
       default:
-        return PLACEHOLDERS[activeTab]
-          ? <PlaceholderView id={activeTab} />
-          : null;
+        return <PlaceholderView id={activeTab} />;
     }
   };
 
+  const isHome = activeTab === 'dashboard';
+
   return (
-    <div className="flex min-h-screen" style={{ background: '#020510' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#020510', overflow: 'hidden' }}>
+      {/* Animated background — always underneath */}
       <AnimatedBackground />
+
+      {/* Left Sidebar */}
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="flex-1 min-h-screen relative" style={{ marginLeft: 72, paddingTop: 60, zIndex: 1 }}>
-        <TopBar status={status} />
-        <div className="p-6 overflow-y-auto scroll-y" style={{ height: 'calc(100vh - 60px)' }}>
+
+      {/* Main content area */}
+      <main style={{
+        flex: 1,
+        marginLeft: 64,  // sidebar collapsed width
+        marginRight: 48, // right panel collapsed width
+        position: 'relative',
+        zIndex: 1,
+        minHeight: '100vh',
+        overflowX: 'hidden',
+      }}>
+        {/* Top status bar */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 10,
+          padding: '12px 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(2,5,16,0.7)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255,255,255,0.03)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#00d4ff', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+              BURNO AI
+            </span>
+            <span style={{ width: 1, height: 12, background: 'rgba(255,255,255,0.1)' }} />
+            <span style={{ fontSize: 11, color: '#3d5070', textTransform: 'capitalize' }}>{activeTab}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <motion.div
+                animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }}
+                style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px rgba(16,185,129,0.8)' }}
+              />
+              <span style={{ fontSize: 10, color: '#3d5070' }}>All systems online</span>
+            </div>
+            <span style={{ fontSize: 10, color: '#1e3050', fontFamily: 'JetBrains Mono, monospace' }}>
+              v2.0.0
+            </span>
+          </div>
+        </div>
+
+        {/* Page content */}
+        <div
+          className="scroll-y"
+          style={{
+            padding: isHome ? 0 : '20px 24px 100px',
+            height: 'calc(100vh - 53px)',
+            overflowY: 'auto',
+          }}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              style={{ height: '100%' }}
             >
               {renderView()}
             </motion.div>
           </AnimatePresence>
         </div>
       </main>
+
+      {/* Right Panel — AI Activity */}
+      <RightPanel />
+
+      {/* Bottom Dock */}
+      <BottomDock activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 }

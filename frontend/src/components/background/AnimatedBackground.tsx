@@ -1,264 +1,177 @@
 'use client';
-
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
-// ─── Particle Canvas ──────────────────────────────────────────────────────────
-function ParticleCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameRef = useRef<number>(0);
-  const mouseRef = useRef({ x: -1000, y: -1000 });
+// ─── Starfield Canvas ─────────────────────────────────────────────────────────
+function StarfieldCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
 
-  const init = useCallback(() => {
-    const canvas = canvasRef.current;
+  useEffect(() => {
+    const canvas = ref.current;
     if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    let raf: number;
+    let w = window.innerWidth, h = window.innerHeight;
+    canvas.width = w; canvas.height = h;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-    const resize = () => {
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = `${window.innerWidth}px`;
-      canvas.style.height = `${window.innerHeight}px`;
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const onMouse = (e: MouseEvent) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
-    };
-    window.addEventListener('mousemove', onMouse);
-
-    // Particles
-    const COUNT = 70;
-    interface Particle {
-      x: number; y: number;
-      vx: number; vy: number;
-      size: number;
-      alpha: number;
-      baseAlpha: number;
-      color: string;
-    }
-    const COLORS = [
-      'rgba(0,212,255,',
-      'rgba(59,130,246,',
-      'rgba(139,92,246,',
-      'rgba(20,184,166,',
-    ];
-
-    const particles: Particle[] = Array.from({ length: COUNT }, () => ({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: (Math.random() - 0.5) * 0.25,
-      size: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.4 + 0.05,
-      baseAlpha: Math.random() * 0.3 + 0.05,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    const STAR_COUNT = 180;
+    const stars = Array.from({ length: STAR_COUNT }, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      r: Math.random() * 1.2 + 0.2,
+      opacity: Math.random() * 0.6 + 0.1,
+      speed: Math.random() * 0.012 + 0.002,
+      twinkle: Math.random() * Math.PI * 2,
     }));
 
-    const w = () => window.innerWidth;
-    const h = () => window.innerHeight;
-
-    let t = 0;
-    const draw = () => {
-      t += 0.005;
-      const W = w();
-      const H = h();
-      ctx.clearRect(0, 0, W, H);
-
-      // Update + draw particles
-      for (const p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0) p.x = W;
-        if (p.x > W) p.x = 0;
-        if (p.y < 0) p.y = H;
-        if (p.y > H) p.y = 0;
-
-        // Mouse repulsion (subtle)
-        const dx = p.x - mouseRef.current.x;
-        const dy = p.y - mouseRef.current.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120) {
-          p.x += (dx / dist) * 0.4;
-          p.y += (dy / dist) * 0.4;
-        }
-
-        // Breathe alpha
-        const a = p.baseAlpha + Math.sin(t * 2 + p.x * 0.01) * 0.05;
-        ctx.fillStyle = `${p.color}${Math.max(0, a)})`;
+    const draw = (t: number) => {
+      ctx.clearRect(0, 0, w, h);
+      stars.forEach(s => {
+        s.twinkle += s.speed;
+        const op = s.opacity * (0.7 + 0.3 * Math.sin(s.twinkle));
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200,220,255,${op})`;
         ctx.fill();
-      }
+      });
+      raf = requestAnimationFrame(draw);
+    };
 
-      // Draw connection lines between close particles
-      for (let i = 0; i < COUNT; i++) {
-        for (let j = i + 1; j < COUNT; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const d = Math.sqrt(dx * dx + dy * dy);
-          if (d < 130) {
-            const alpha = (1 - d / 130) * 0.06;
+    raf = requestAnimationFrame(draw);
+
+    const resize = () => {
+      w = window.innerWidth; h = window.innerHeight;
+      canvas.width = w; canvas.height = h;
+    };
+    window.addEventListener('resize', resize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
+  }, []);
+
+  return <canvas ref={ref} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />;
+}
+
+// ─── Neural Network Canvas ────────────────────────────────────────────────────
+function NeuralCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    let raf: number;
+    let w = window.innerWidth, h = window.innerHeight;
+    canvas.width = w; canvas.height = h;
+
+    const NODE_COUNT = 28;
+    const nodes = Array.from({ length: NODE_COUNT }, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.18,
+      vy: (Math.random() - 0.5) * 0.18,
+    }));
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      nodes.forEach(n => {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > w) n.vx *= -1;
+        if (n.y < 0 || n.y > h) n.vy *= -1;
+      });
+
+      // Draw connections
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 180) {
+            const alpha = (1 - dist / 180) * 0.06;
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
             ctx.strokeStyle = `rgba(0,212,255,${alpha})`;
             ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
             ctx.stroke();
           }
         }
       }
 
-      frameRef.current = requestAnimationFrame(draw);
+      // Draw nodes
+      nodes.forEach(n => {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,212,255,0.15)';
+        ctx.fill();
+      });
+
+      raf = requestAnimationFrame(draw);
     };
 
-    draw();
-    return () => {
-      cancelAnimationFrame(frameRef.current);
-      window.removeEventListener('resize', resize);
-      window.removeEventListener('mousemove', onMouse);
-    };
+    raf = requestAnimationFrame(draw);
+    const resize = () => { w = window.innerWidth; h = window.innerHeight; canvas.width = w; canvas.height = h; };
+    window.addEventListener('resize', resize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
   }, []);
 
-  useEffect(() => {
-    const cleanup = init();
-    return () => { cleanup?.(); };
-  }, [init]);
+  return <canvas ref={ref} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />;
+}
 
+// ─── Ambient Blobs ─────────────────────────────────────────────────────────────
+function AmbientBlobs() {
+  const blobs = [
+    { color: 'rgba(59,130,246,0.055)', x: '15%', y: '-10%', w: '50vw', h: '50vw', delay: 0 },
+    { color: 'rgba(139,92,246,0.04)',  x: '70%', y: '60%',  w: '40vw', h: '40vw', delay: 2 },
+    { color: 'rgba(0,212,255,0.035)',  x: '5%',  y: '55%',  w: '35vw', h: '35vw', delay: 4 },
+    { color: 'rgba(16,185,129,0.025)', x: '60%', y: '5%',   w: '30vw', h: '30vw', delay: 1 },
+  ];
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 0, opacity: 0.6 }}
-    />
+    <>
+      {blobs.map((b, i) => (
+        <motion.div
+          key={i}
+          animate={{ scale: [1, 1.12, 1], opacity: [0.6, 1, 0.6] }}
+          transition={{ duration: 8 + i * 2, repeat: Infinity, delay: b.delay, ease: 'easeInOut' }}
+          style={{
+            position: 'absolute',
+            left: b.x, top: b.y,
+            width: b.w, height: b.h,
+            background: `radial-gradient(ellipse, ${b.color}, transparent 70%)`,
+            borderRadius: '50%',
+            pointerEvents: 'none',
+            filter: 'blur(1px)',
+          }}
+        />
+      ))}
+    </>
   );
 }
 
-// ─── Animated Background Component ───────────────────────────────────────────
+// ─── Main Export ──────────────────────────────────────────────────────────────
 export default function AnimatedBackground() {
   return (
-    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-      {/* Base void */}
-      <div className="absolute inset-0" style={{ background: '#020510' }} />
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 0,
+      background: 'radial-gradient(ellipse 120% 80% at 50% -20%, #070e2a 0%, #020510 55%, #030212 100%)',
+      overflow: 'hidden', pointerEvents: 'none',
+    }}>
+      <StarfieldCanvas />
+      <NeuralCanvas />
+      <AmbientBlobs />
 
-      {/* Subtle radial ambient glows */}
-      <motion.div
-        className="absolute inset-0"
-        style={{
-          background: `
-            radial-gradient(ellipse 140% 70% at 15% -5%, rgba(59,130,246,0.07) 0%, transparent 55%),
-            radial-gradient(ellipse 100% 90% at 90% 100%, rgba(139,92,246,0.05) 0%, transparent 55%),
-            radial-gradient(ellipse 70% 50% at 5% 75%, rgba(0,212,255,0.04) 0%, transparent 45%)
-          `
-        }}
-        animate={{ opacity: [0.8, 1, 0.8] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-      />
+      {/* Subtle grid */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: 'linear-gradient(rgba(0,212,255,0.008) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.008) 1px, transparent 1px)',
+        backgroundSize: '60px 60px',
+      }} />
 
-      {/* Fine grid */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(0,212,255,0.010) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,212,255,0.010) 1px, transparent 1px)
-          `,
-          backgroundSize: '60px 60px',
-        }}
-      />
-
-      {/* Denser grid near center */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(0,212,255,0.006) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,212,255,0.006) 1px, transparent 1px)
-          `,
-          backgroundSize: '20px 20px',
-          maskImage: 'radial-gradient(ellipse 60% 50% at 50% 50%, black 0%, transparent 100%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 60% 50% at 50% 50%, black 0%, transparent 100%)',
-        }}
-      />
-
-      {/* Floating ambient orbs */}
+      {/* Scanline */}
       <motion.div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          width: 600,
-          height: 600,
-          top: '10%',
-          left: '60%',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-        }}
-        animate={{
-          x: [0, 30, -20, 0],
-          y: [0, -20, 15, 0],
-          scale: [1, 1.1, 0.95, 1],
-        }}
-        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          width: 500,
-          height: 500,
-          bottom: '5%',
-          left: '5%',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)',
-          filter: 'blur(50px)',
-        }}
-        animate={{
-          x: [0, -20, 25, 0],
-          y: [0, 15, -10, 0],
-          scale: [1, 0.95, 1.08, 1],
-        }}
-        transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
-      />
-      <motion.div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          width: 400,
-          height: 400,
-          top: '40%',
-          left: '40%',
-          background: 'radial-gradient(circle, rgba(0,212,255,0.03) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }}
-        animate={{
-          x: [0, 15, -10, 0],
-          y: [0, -10, 20, 0],
-          scale: [1, 1.05, 0.98, 1],
-        }}
-        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut', delay: 6 }}
-      />
-
-      {/* Horizontal scan line */}
-      <motion.div
-        className="absolute left-0 right-0 pointer-events-none"
-        style={{
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.06) 30%, rgba(0,212,255,0.10) 50%, rgba(0,212,255,0.06) 70%, transparent 100%)',
-        }}
         animate={{ top: ['0%', '100%'] }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'linear', repeatDelay: 4 }}
-      />
-
-      {/* Particle constellation */}
-      <ParticleCanvas />
-
-      {/* Vignette */}
-      <div
-        className="absolute inset-0 pointer-events-none"
+        transition={{ duration: 8, repeat: Infinity, ease: 'linear', repeatDelay: 4 }}
         style={{
-          background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(2,5,16,0.6) 100%)',
+          position: 'absolute', left: 0, right: 0, height: 1,
+          background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.06), transparent)',
+          pointerEvents: 'none',
         }}
       />
     </div>

@@ -1,433 +1,365 @@
 'use client';
-
-import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Bot, User, Trash2, Copy, Mic, MoreHorizontal, CheckCheck, Code2 } from 'lucide-react';
-import { Message } from '@/types';
-import { formatTimestamp, getAgentIcon } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import type { Message } from '@/types';
 
-interface ChatInterfaceProps {
-  messages: Message[];
-  onSendMessage: (content: string) => void;
-  isProcessing: boolean;
-  onClear: () => void;
+// ─── Thinking Indicator ────────────────────────────────────────────────────────
+function ThinkingIndicator() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+      style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}
+    >
+      <div style={{
+        width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+        background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(139,92,246,0.15))',
+        border: '1px solid rgba(0,212,255,0.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+      }}>⚡</div>
+      <div style={{
+        padding: '12px 16px', borderRadius: 16, borderBottomLeftRadius: 4,
+        background: 'rgba(5,8,22,0.85)',
+        border: '1px solid rgba(0,212,255,0.12)',
+        backdropFilter: 'blur(20px)',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 11, color: '#00d4ff', fontWeight: 500, letterSpacing: '0.05em' }}>BURNO is reasoning</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[0, 1, 2].map(i => (
+            <motion.div key={i}
+              animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+              style={{ width: 4, height: 4, borderRadius: '50%', background: '#00d4ff' }}
+            />
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
-const AGENT_COLORS: Record<string, string> = {
-  research:     '#3b82f6',
-  coding:       '#10b981',
-  automation:   '#f97316',
-  productivity: '#8b5cf6',
-  vision:       '#f472b6',
-  memory:       '#00d4ff',
-};
-
-// ─── Render message content with code block support ──────────────────────────
-function MessageContent({ content }: { content: string }) {
-  const parts = content.split(/(```[\s\S]*?```)/g);
+// ─── Code Block ────────────────────────────────────────────────────────────────
+function CodeBlock({ code, language }: { code: string; language: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   return (
-    <div className="space-y-2">
-      {parts.map((part, i) => {
-        if (part.startsWith('```') && part.endsWith('```')) {
-          const lines  = part.slice(3, -3).split('\n');
-          const lang   = lines[0].trim() || 'code';
-          const code   = lines.slice(1).join('\n');
-          return (
-            <div
-              key={i}
-              className="rounded-xl overflow-hidden"
-              style={{ background: 'rgba(2,5,16,0.8)', border: '1px solid rgba(0,212,255,0.12)' }}
-            >
-              <div
-                className="flex items-center gap-2 px-3 py-1.5"
-                style={{ borderBottom: '1px solid rgba(0,212,255,0.08)', background: 'rgba(0,212,255,0.04)' }}
-              >
-                <Code2 size={11} style={{ color: '#00d4ff' }} />
-                <span className="mono" style={{ fontSize: 10, color: '#00d4ff', letterSpacing: '0.1em' }}>
-                  {lang.toUpperCase()}
-                </span>
-              </div>
-              <pre
-                className="mono px-4 py-3 overflow-x-auto text-xs leading-relaxed"
-                style={{ color: '#a8d8ea', whiteSpace: 'pre', fontSize: 12 }}
-              >
-                {code}
-              </pre>
-            </div>
-          );
-        }
-        // Render checkmarks and bullets with light styling
-        return (
-          <div key={i} className="text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>
-            {part.split('\n').map((line, j) => {
-              if (line.startsWith('✓') || line.startsWith('⟳') || line.startsWith('📌') ||
-                  line.startsWith('📋') || line.startsWith('•')) {
-                return (
-                  <div key={j} className="flex items-start gap-2" style={{ paddingTop: 2 }}>
-                    <span style={{ flexShrink: 0 }}>{line.slice(0, 2)}</span>
-                    <span>{line.slice(2)}</span>
-                  </div>
-                );
-              }
-              return <span key={j}>{line}{j < part.split('\n').length - 1 ? '\n' : ''}</span>;
-            })}
-          </div>
-        );
-      })}
+    <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', margin: '8px 0', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <span style={{ fontSize: 10, color: '#5a7599', fontFamily: 'JetBrains Mono, monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{language || 'code'}</span>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={copy} style={{ fontSize: 10, color: copied ? '#10b981' : '#5a7599', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
+          {copied ? '✓ Copied' : 'Copy'}
+        </motion.button>
+      </div>
+      <SyntaxHighlighter
+        language={language || 'text'}
+        style={oneDark}
+        customStyle={{ margin: 0, padding: '14px', background: 'rgba(2,4,16,0.9)', fontSize: 12, lineHeight: 1.6 }}
+        showLineNumbers={code.split('\n').length > 5}
+      >
+        {code}
+      </SyntaxHighlighter>
     </div>
   );
 }
 
-// ─── Single message bubble ────────────────────────────────────────────────────
-function MessageBubble({ msg, isStreaming }: { msg: Message; isStreaming?: boolean }) {
+// ─── Message Bubble ────────────────────────────────────────────────────────────
+function MessageBubble({ message }: { message: Message }) {
+  const isUser = message.role === 'user';
+  const [liked, setLiked] = useState<null | boolean>(null);
   const [copied, setCopied] = useState(false);
-  const isUser   = msg.role === 'user';
-  const isSystem = msg.role === 'system';
-  const color    = msg.agentType ? (AGENT_COLORS[msg.agentType] || '#00d4ff') : '#00d4ff';
-  const thinking = msg.agentName === 'Thinking…' && !msg.content;
 
-  const copy = async () => {
-    await navigator.clipboard.writeText(msg.content);
+  const copyMsg = () => {
+    navigator.clipboard.writeText(message.content);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <motion.div
-      className={`flex gap-3 group ${isUser ? 'flex-row-reverse' : ''}`}
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      initial={{ opacity: 0, y: 12, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -6 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      style={{
+        display: 'flex',
+        flexDirection: isUser ? 'row-reverse' : 'row',
+        alignItems: 'flex-end', gap: 10,
+        marginBottom: 20,
+      }}
     >
       {/* Avatar */}
-      <div
-        className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-        style={{
-          background: isUser
-            ? 'linear-gradient(135deg,rgba(59,130,246,0.18),rgba(99,102,241,0.12))'
-            : isSystem
-            ? 'rgba(139,92,246,0.1)'
-            : `${color}12`,
-          border: `1px solid ${isUser ? 'rgba(59,130,246,0.22)' : isSystem ? 'rgba(139,92,246,0.18)' : `${color}22`}`,
-        }}
-      >
-        {isUser
-          ? <User size={13} style={{ color: '#3b82f6' }} />
-          : isSystem
-          ? <Bot size={13} style={{ color: '#8b5cf6' }} />
-          : <span style={{ fontSize: 13 }}>{getAgentIcon(msg.agentType || '')}</span>
-        }
+      <div style={{
+        width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+        background: isUser
+          ? 'linear-gradient(135deg, rgba(59,130,246,0.3), rgba(99,102,241,0.2))'
+          : 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(139,92,246,0.15))',
+        border: `1px solid ${isUser ? 'rgba(59,130,246,0.3)' : 'rgba(0,212,255,0.2)'}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 13,
+      }}>
+        {isUser ? '👤' : '⚡'}
       </div>
 
-      {/* Content */}
-      <div className={`flex-1 max-w-[85%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-        {/* Agent name */}
-        {msg.agentName && (
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <motion.div
-              className="w-1 h-1 rounded-full"
-              style={{ background: color }}
-              animate={isStreaming ? { opacity: [0.3, 1, 0.3] } : {}}
-              transition={{ duration: 1, repeat: Infinity }}
-            />
-            <span className="label" style={{ color, fontSize: 9, letterSpacing: '0.12em' }}>
-              {msg.agentName.toUpperCase()}
-            </span>
-          </div>
-        )}
-
+      <div style={{ maxWidth: '72%', minWidth: 0 }}>
         {/* Bubble */}
-        <div
-          className="relative rounded-2xl px-4 py-3 w-full"
+        <motion.div
+          whileHover={{ boxShadow: isUser ? '0 8px 30px rgba(59,130,246,0.15)' : '0 8px 30px rgba(0,212,255,0.08)' }}
           style={{
+            padding: '12px 16px',
+            borderRadius: 18,
+            borderBottomRightRadius: isUser ? 4 : 18,
+            borderBottomLeftRadius: isUser ? 18 : 4,
             background: isUser
-              ? 'linear-gradient(135deg,rgba(59,130,246,0.1),rgba(99,102,241,0.06))'
-              : isSystem
-              ? 'rgba(139,92,246,0.05)'
-              : 'rgba(8,15,32,0.7)',
-            border: isUser
-              ? '1px solid rgba(59,130,246,0.16)'
-              : isSystem
-              ? '1px solid rgba(139,92,246,0.1)'
-              : '1px solid rgba(255,255,255,0.05)',
-            backdropFilter: 'blur(16px)',
-            color: isSystem ? 'var(--text-secondary)' : 'var(--text-primary)',
-            fontStyle: isSystem ? 'italic' : 'normal',
+              ? 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(99,102,241,0.12))'
+              : 'rgba(5,8,22,0.85)',
+            border: `1px solid ${isUser ? 'rgba(59,130,246,0.25)' : 'rgba(0,212,255,0.1)'}`,
+            backdropFilter: 'blur(20px)',
+            position: 'relative', overflow: 'hidden',
+            transition: 'all 0.3s ease',
           }}
         >
-          {/* Top-left corner accent for assistant */}
-          {!isUser && !isSystem && (
-            <div className="absolute top-0 left-0 w-4 h-4" style={{
-              borderTop: `1.5px solid ${color}28`,
-              borderLeft: `1.5px solid ${color}28`,
-              borderRadius: '12px 0 0 0',
+          {/* Shimmer for user */}
+          {isUser && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%)',
+              pointerEvents: 'none',
             }} />
           )}
 
-          {/* Thinking indicator */}
-          {thinking ? (
-            <div className="flex items-center gap-1.5">
-              {[0, 1, 2].map(i => (
-                <motion.div key={i} className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: `${color}90` }}
-                  animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
-                />
-              ))}
-              <span className="label ml-1" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                Processing…
-              </span>
-            </div>
-          ) : isUser || isSystem ? (
-            <p className="text-sm leading-relaxed">{msg.content}</p>
-          ) : (
-            <div>
-              <MessageContent content={msg.content} />
-              {/* Blinking cursor while streaming */}
-              {isStreaming && (
-                <motion.span
-                  className="inline-block ml-0.5 w-0.5 h-4 rounded-full align-middle"
-                  style={{ background: color }}
-                  animate={{ opacity: [1, 0] }}
-                  transition={{ duration: 0.5, repeat: Infinity }}
-                />
-              )}
-            </div>
+          {/* Left accent for BURNO */}
+          {!isUser && (
+            <div style={{
+              position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 2, borderRadius: 2,
+              background: 'linear-gradient(180deg, #00d4ff, #8b5cf6)',
+              boxShadow: '0 0 8px rgba(0,212,255,0.5)',
+            }} />
           )}
-        </div>
 
-        {/* Meta row */}
-        <div className={`flex items-center gap-3 mt-1.5 ${isUser ? 'flex-row-reverse' : ''}`}>
-          <span className="label" style={{ fontSize: 9, color: 'var(--text-dim)' }}>
-            {formatTimestamp(msg.timestamp)}
-          </span>
-          {msg.metadata?.processingTime && (
-            <span className="mono" style={{ fontSize: 9, color: 'var(--text-dim)' }}>
-              {msg.metadata.processingTime}ms
+          <div style={{ paddingLeft: !isUser ? 10 : 0 }}>
+            {isUser ? (
+              <p style={{ fontSize: 14, lineHeight: 1.6, color: '#e2eeff', margin: 0 }}>{message.content}</p>
+            ) : (
+              <div className="markdown-content" style={{ fontSize: 14, lineHeight: 1.7, color: '#c8deff' }}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code(props) {
+                      const { children, className } = props;
+                      const match = /language-(\w+)/.exec(className || '');
+                      const isBlock = String(children).includes('\n');
+                      if (isBlock) {
+                        return <CodeBlock code={String(children).replace(/\n$/, '')} language={match?.[1] || ''} />;
+                      }
+                      return <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, background: 'rgba(0,212,255,0.08)', padding: '2px 6px', borderRadius: 4, color: '#00d4ff' }}>{children}</code>;
+                    },
+                    p: ({ children }) => <p style={{ margin: '0 0 10px 0', lastChild: 0 } as React.CSSProperties}>{children}</p>,
+                    ul: ({ children }) => <ul style={{ margin: '8px 0', paddingLeft: 20 }}>{children}</ul>,
+                    ol: ({ children }) => <ol style={{ margin: '8px 0', paddingLeft: 20 }}>{children}</ol>,
+                    li: ({ children }) => <li style={{ marginBottom: 4, color: '#c8deff' }}>{children}</li>,
+                    h1: ({ children }) => <h1 style={{ fontSize: 18, fontWeight: 700, color: '#e2eeff', margin: '12px 0 6px', fontFamily: 'Space Grotesk, sans-serif' }}>{children}</h1>,
+                    h2: ({ children }) => <h2 style={{ fontSize: 16, fontWeight: 600, color: '#e2eeff', margin: '10px 0 5px' }}>{children}</h2>,
+                    h3: ({ children }) => <h3 style={{ fontSize: 14, fontWeight: 600, color: '#c8deff', margin: '8px 0 4px' }}>{children}</h3>,
+                    blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid rgba(0,212,255,0.4)', paddingLeft: 12, margin: '8px 0', color: '#7a96bb', fontStyle: 'italic' }}>{children}</blockquote>,
+                    table: ({ children }) => <table style={{ borderCollapse: 'collapse', width: '100%', margin: '10px 0', fontSize: 12 }}>{children}</table>,
+                    th: ({ children }) => <th style={{ padding: '6px 12px', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.12)', color: '#00d4ff', fontWeight: 600, textAlign: 'left' }}>{children}</th>,
+                    td: ({ children }) => <td style={{ padding: '6px 12px', border: '1px solid rgba(255,255,255,0.04)', color: '#c8deff' }}>{children}</td>,
+                    strong: ({ children }) => <strong style={{ color: '#e2eeff', fontWeight: 600 }}>{children}</strong>,
+                    a: ({ children, href }) => <a href={href} style={{ color: '#00d4ff', textDecoration: 'underline', textDecorationStyle: 'dotted' }} target="_blank" rel="noreferrer">{children}</a>,
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Message actions */}
+        {!isUser && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+            style={{ display: 'flex', gap: 6, marginTop: 6, paddingLeft: 10 }}
+          >
+            {[
+              { icon: copied ? '✓' : '⊕', label: 'Copy', action: copyMsg, color: copied ? '#10b981' : '#3d5070' },
+              { icon: '↺', label: 'Regenerate', action: () => {}, color: '#3d5070' },
+              { icon: '👍', label: 'Like', action: () => setLiked(true), color: liked === true ? '#10b981' : '#3d5070' },
+              { icon: '👎', label: 'Dislike', action: () => setLiked(false), color: liked === false ? '#ef4444' : '#3d5070' },
+            ].map(a => (
+              <motion.button key={a.label} whileHover={{ y: -1, color: '#c8deff' }} whileTap={{ scale: 0.9 }}
+                onClick={a.action}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: a.color, padding: '2px 4px', transition: 'color 0.2s' }}
+              >
+                {a.icon}
+              </motion.button>
+            ))}
+            <span style={{ fontSize: 10, color: '#1e3050', marginLeft: 4, alignSelf: 'center' }}>
+              {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
             </span>
-          )}
-          {msg.metadata?.model && (
-            <span className="label" style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.06em' }}>
-              {msg.metadata.model.split('-').slice(0, 2).join('-')}
-            </span>
-          )}
-          {!isSystem && (
-            <button
-              onClick={copy}
-              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
-            >
-              {copied
-                ? <CheckCheck size={10} style={{ color: '#10b981' }} />
-                : <Copy size={10} style={{ color: 'var(--text-muted)' }} />
-              }
-            </button>
-          )}
-        </div>
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );
 }
 
-// ─── Typing indicator ─────────────────────────────────────────────────────────
-function TypingIndicator() {
+// ─── Empty State ───────────────────────────────────────────────────────────────
+function EmptyChat() {
   return (
-    <motion.div
-      className="flex gap-3"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
-      transition={{ duration: 0.25 }}
-    >
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.16)' }}>
-        <Bot size={13} style={{ color: '#00d4ff' }} />
-      </div>
-      <div className="flex items-center gap-1.5 px-4 py-3 rounded-2xl"
-        style={{ background: 'rgba(8,15,32,0.7)', border: '1px solid rgba(255,255,255,0.05)' }}>
-        {[0, 1, 2].map(i => (
-          <motion.div key={i} className="w-1.5 h-1.5 rounded-full"
-            style={{ background: 'rgba(0,212,255,0.7)' }}
-            animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
-            transition={{ duration: 1, repeat: Infinity, delay: i * 0.18 }}
-          />
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
+      <motion.div
+        animate={{ scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ fontSize: 48 }}
+      >
+        ⚡
+      </motion.div>
+      <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 20, fontWeight: 600, color: '#e2eeff' }}>Start a conversation</h3>
+      <p style={{ fontSize: 13, color: '#3d5070', textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
+        Ask BURNO anything — research, code, analysis, automation, and more.
+      </p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 400 }}>
+        {['What can you do?', 'Write me some Python code', 'Explain quantum computing'].map(s => (
+          <div key={s} style={{ padding: '6px 12px', borderRadius: 100, background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.12)', fontSize: 11, color: '#00d4ff', cursor: 'pointer' }}>
+            {s}
+          </div>
         ))}
-        <span className="label ml-1" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-          Processing…
-        </span>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Chat Interface ────────────────────────────────────────────────────────────
+interface ChatInterfaceProps {
+  messages: Message[];
+  onSendMessage: (message: string) => void;
+  isProcessing: boolean;
+  onClear: () => void;
+}
+
 export default function ChatInterface({ messages, onSendMessage, isProcessing, onClear }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
-  const [rows, setRows]   = useState(1);
-  const endRef            = useRef<HTMLDivElement>(null);
-  const inputRef          = useRef<HTMLTextAreaElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isProcessing]);
 
   const handleSend = () => {
     if (!input.trim() || isProcessing) return;
-    onSendMessage(input.trim());
+    onSendMessage(input);
     setInput('');
-    setRows(1);
   };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    setRows(Math.min(e.target.value.split('\n').length, 5));
-  };
-
-  const canSend = input.trim().length > 0 && !isProcessing;
-
-  const SUGGESTIONS = [
-    'Search for AI news', 'Write a Python function', 'Analyze my screen', 'Recall memory',
-  ];
 
   return (
-    <motion.div
-      className="glass-panel flex flex-col relative overflow-hidden"
-      style={{ height: '100%' }}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.15, duration: 0.6 }}
-    >
-      <div className="hud-corner-tl" />
-      <div className="hud-corner-tr" />
-      <div className="hud-corner-bl" />
-      <div className="hud-corner-br" />
-
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-4 flex-shrink-0"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg,rgba(0,212,255,0.14),rgba(99,102,241,0.1))', border: '1px solid rgba(0,212,255,0.2)' }}>
-            <Sparkles size={14} style={{ color: '#00d4ff' }} />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold" style={{ color: '#e2eeff' }}>BURNO AI</h3>
-            <p className="label mt-0.5">Multi-agent • 6 Agents Online</p>
-          </div>
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full ml-1"
-            style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.14)' }}>
-            <motion.div className="w-1 h-1 rounded-full" style={{ background: '#10b981' }}
-              animate={{ scale: [1, 1.4, 1] }} transition={{ duration: 2, repeat: Infinity }} />
-            <span className="label" style={{ color: '#10b981', fontSize: 9 }}>LIVE</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <motion.button onClick={onClear}
-            className="p-2 rounded-lg" style={{ color: 'var(--text-muted)' }}
-            whileHover={{ scale: 1.05, backgroundColor: 'rgba(239,68,68,0.06)', color: '#ef4444' }}
-            whileTap={{ scale: 0.94 }}>
-            <Trash2 size={13} />
-          </motion.button>
-          <motion.button className="p-2 rounded-lg" style={{ color: 'var(--text-muted)' }}
-            whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.04)' }}>
-            <MoreHorizontal size={13} />
-          </motion.button>
-        </div>
-      </div>
-
-
-      {/* ── Messages ───────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5 scroll-y">
-        <AnimatePresence initial={false}>
-          {messages.map((msg, idx) => {
-            const isLast = idx === messages.length - 1;
-            const streaming = isLast && isProcessing && msg.role === 'assistant';
-            return <MessageBubble key={msg.id} msg={msg} isStreaming={streaming} />;
-          })}
-        </AnimatePresence>
-
-        {/* Suggestion chips — only when empty */}
-        {messages.length === 1 && !isProcessing && (
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: 'rgba(2,5,16,0.4)',
+      borderRadius: 20, border: '1px solid rgba(255,255,255,0.04)',
+      backdropFilter: 'blur(20px)',
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'rgba(3,6,20,0.6)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <motion.div
-            className="flex flex-wrap gap-2 pt-2"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            {SUGGESTIONS.map(s => (
-              <motion.button
-                key={s}
-                onClick={() => onSendMessage(s)}
-                className="px-3 py-1.5 rounded-full text-xs"
-                style={{
-                  background: 'rgba(0,212,255,0.06)',
-                  border: '1px solid rgba(0,212,255,0.14)',
-                  color: 'rgba(0,212,255,0.8)',
-                }}
-                whileHover={{ backgroundColor: 'rgba(0,212,255,0.12)', borderColor: 'rgba(0,212,255,0.28)' }}
-                whileTap={{ scale: 0.96 }}
-              >
-                {s}
-              </motion.button>
-            ))}
-          </motion.div>
-        )}
-
-        <div ref={endRef} />
+            animate={{ scale: [1, 1.2, 1], boxShadow: ['0 0 8px rgba(16,185,129,0.5)', '0 0 16px rgba(16,185,129,0.8)', '0 0 8px rgba(16,185,129,0.5)'] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }}
+          />
+          <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 14, fontWeight: 600, color: '#e2eeff' }}>BURNO Chat</span>
+          <span style={{ fontSize: 10, color: '#3d5070', padding: '2px 8px', borderRadius: 100, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            {messages.length} messages
+          </span>
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+          onClick={onClear}
+          style={{ fontSize: 11, color: '#3d5070', background: 'none', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
+        >
+          Clear
+        </motion.button>
       </div>
 
-      {/* ── Input ──────────────────────────────────────────── */}
-      <div className="px-5 py-4 flex-shrink-0"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-        <div className="flex items-end gap-2.5">
-          {/* Mic */}
-          <motion.button
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.1)' }}
-            whileHover={{ scale: 1.06, backgroundColor: 'rgba(0,212,255,0.1)' }}
-            whileTap={{ scale: 0.93 }}>
-            <Mic size={14} style={{ color: '#00d4ff' }} />
-          </motion.button>
+      {/* Messages */}
+      <div className="scroll-y" style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+        {messages.length === 0 ? (
+          <EmptyChat />
+        ) : (
+          <>
+            {messages.map((msg, i) => (
+              <MessageBubble key={i} message={msg} />
+            ))}
+            <AnimatePresence>
+              {isProcessing && <ThinkingIndicator />}
+            </AnimatePresence>
+            <div ref={bottomRef} />
+          </>
+        )}
+      </div>
 
-          {/* Textarea */}
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              rows={rows}
-              value={input}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask BURNO anything…  (Shift+Enter for new line)"
-              disabled={isProcessing}
-              className="glass-input resize-none w-full"
-              style={{ paddingTop: 10, paddingBottom: 10, fontSize: 13, lineHeight: 1.55, minHeight: 40 }}
-            />
-          </div>
-
-          {/* Send */}
-          <motion.button
-            onClick={handleSend}
-            disabled={!canSend}
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+      {/* Input */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.04)', background: 'rgba(3,6,20,0.6)' }}>
+        <div style={{
+          display: 'flex', gap: 8, alignItems: 'center',
+          padding: '8px 8px 8px 16px',
+          background: 'rgba(5,8,22,0.8)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 16,
+          backdropFilter: 'blur(20px)',
+        }}>
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            placeholder={isProcessing ? 'BURNO is thinking...' : 'Message BURNO...'}
+            disabled={isProcessing}
             style={{
-              background: canSend ? 'linear-gradient(135deg,rgba(0,212,255,0.18),rgba(59,130,246,0.12))' : 'rgba(255,255,255,0.03)',
-              border: canSend ? '1px solid rgba(0,212,255,0.32)' : '1px solid rgba(255,255,255,0.05)',
-              boxShadow: canSend ? '0 0 18px rgba(0,212,255,0.12)' : 'none',
+              flex: 1, background: 'none', border: 'none', outline: 'none',
+              color: '#e2eeff', fontSize: 14, fontFamily: 'Inter, sans-serif',
             }}
-            whileHover={canSend ? { scale: 1.08, boxShadow: '0 0 28px rgba(0,212,255,0.22)' } : {}}
-            whileTap={canSend ? { scale: 0.93 } : {}}>
-            <Send size={14} style={{ color: canSend ? '#00d4ff' : 'var(--text-muted)' }} />
+          />
+          <motion.button
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            onClick={handleSend}
+            disabled={isProcessing || !input.trim()}
+            style={{
+              width: 38, height: 38, borderRadius: 12, border: 'none', cursor: 'pointer',
+              background: input.trim() && !isProcessing
+                ? 'linear-gradient(135deg, #00d4ff, #3b82f6)'
+                : 'rgba(255,255,255,0.04)',
+              color: input.trim() && !isProcessing ? '#050816' : '#3d5070',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, fontWeight: 700,
+              boxShadow: input.trim() ? '0 0 16px rgba(0,212,255,0.3)' : 'none',
+              transition: 'all 0.3s ease',
+            }}
+          >
+            {isProcessing ? (
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#00d4ff' }}
+              />
+            ) : '→'}
           </motion.button>
         </div>
-
-        <p className="label mt-2 text-center" style={{ fontSize: 9 }}>
-          BURNO AI OS · Multi-agent routing · 6 specialists online · Shift+Enter for new line
+        <p style={{ fontSize: 10, color: '#1e3050', textAlign: 'center', marginTop: 8 }}>
+          BURNO AI · Groq LLaMA 3.3 70B · Press Enter to send
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }
