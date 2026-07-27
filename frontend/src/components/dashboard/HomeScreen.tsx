@@ -167,21 +167,21 @@ function MetricCard({ label, value, unit, color, icon }: { label: string; value:
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -3, boxShadow: `0 16px 40px rgba(0,0,0,0.4), 0 0 0 1px ${color}20` }}
+      whileHover={{ y: -2, boxShadow: `0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px ${color}20` }}
       style={{
-        padding: '14px 16px', borderRadius: 14,
+        padding: '10px 12px', borderRadius: 12,
         background: `linear-gradient(135deg, ${color}08, rgba(5,8,22,0.6))`,
         border: `1px solid ${color}15`,
         backdropFilter: 'blur(20px)',
-        minWidth: 100, flex: 1,
         transition: 'all 0.3s ease',
+        textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 16, marginBottom: 6 }}>{icon}</div>
-      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 18, fontWeight: 600, color, letterSpacing: '-0.02em' }}>
-        {value}<span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }}>{unit}</span>
+      <div style={{ fontSize: 14, marginBottom: 4 }}>{icon}</div>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 14, fontWeight: 600, color, letterSpacing: '-0.02em' }}>
+        {value}<span style={{ fontSize: 9, opacity: 0.6, marginLeft: 1 }}>{unit}</span>
       </div>
-      <div style={{ fontSize: 9, color: '#3d5070', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>{label}</div>
+      <div style={{ fontSize: 8, color: '#3d5070', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{label}</div>
     </motion.div>
   );
 }
@@ -284,8 +284,14 @@ function CommandBar({ onSend, onTabChange }: { onSend: (msg: string) => void; on
         </div>
       </motion.div>
 
-      {/* Suggestion chips */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+      {/* Suggestion chips — single row, horizontal scroll */}
+      <div style={{
+        display: 'flex', gap: 6, marginTop: 12,
+        overflowX: 'auto', width: '100%',
+        paddingBottom: 4,
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+      }}>
         {CHIPS.map((chip, i) => (
           <motion.button
             key={chip.label}
@@ -295,7 +301,7 @@ function CommandBar({ onSend, onTabChange }: { onSend: (msg: string) => void; on
             whileTap={{ scale: 0.97 }}
             onClick={() => handleChip(chip.prompt)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 5,
+              display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
               padding: '6px 12px', borderRadius: 100, cursor: 'pointer',
               background: `${chip.color}08`,
               border: `1px solid ${chip.color}15`,
@@ -351,13 +357,13 @@ export default function HomeScreen({ onSendMessage, onTabChange }: {
   const currentState = STATES[stateIdx];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', paddingTop: '8vh', gap: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '6vh', paddingBottom: 140, gap: 0 }}>
 
       {/* AI Core Orb */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-        style={{ position: 'relative', marginBottom: 8 }}
+        style={{ position: 'relative', marginBottom: 4, transform: 'scale(0.7)', transformOrigin: 'center' }}
       >
         <AICoreOrb state={currentState.key} />
 
@@ -381,13 +387,13 @@ export default function HomeScreen({ onSendMessage, onTabChange }: {
       <motion.div
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.8 }}
-        style={{ textAlign: 'center', marginBottom: 8 }}
+        style={{ textAlign: 'center', marginBottom: 6, marginTop: -50 }}
       >
         <h1 style={{
-          fontFamily: 'Space Grotesk, sans-serif', fontSize: 36, fontWeight: 700,
+          fontFamily: 'Space Grotesk, sans-serif', fontSize: 30, fontWeight: 700,
           background: 'linear-gradient(135deg, #ffffff 0%, #00d4ff 50%, #8b5cf6 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          letterSpacing: '-0.02em', marginBottom: 4,
+          letterSpacing: '-0.02em', marginBottom: 2,
         }}>
           BURNO AI
         </h1>
@@ -400,7 +406,7 @@ export default function HomeScreen({ onSendMessage, onTabChange }: {
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
-        style={{ marginBottom: 32, textAlign: 'center', height: 48 }}
+        style={{ marginBottom: 20, textAlign: 'center', height: 44 }}
       >
         <AnimatePresence mode="wait">
           <motion.div
@@ -427,27 +433,29 @@ export default function HomeScreen({ onSendMessage, onTabChange }: {
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1, duration: 0.8 }}
-        style={{ width: '100%', maxWidth: 720, marginBottom: 40, paddingBottom: 80 }}
+        style={{ width: '100%', maxWidth: 700, marginBottom: 28 }}
       >
         <CommandBar onSend={onSendMessage} onTabChange={onTabChange} />
       </motion.div>
 
-      {/* Live Metrics Row */}
+      {/* Live Metrics Row — inline, scrolls with page */}
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.2 }}
         style={{
-          display: 'flex', gap: 10, width: '100%', maxWidth: 720,
-          flexWrap: 'wrap', position: 'fixed', bottom: 90, left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '0 16px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(6, 1fr)',
+          gap: 8,
+          width: '100%',
+          maxWidth: 700,
+          padding: '0 4px',
         }}
       >
         <MetricCard label="Agents" value={metrics.agents} icon="⚡" color="#00d4ff" />
         <MetricCard label="CPU" value={`${metrics.cpu}%`} icon="💻" color="#3b82f6" />
         <MetricCard label="Memory" value={`${metrics.mem}%`} icon="🧠" color="#8b5cf6" />
         <MetricCard label="Latency" value={metrics.latency} unit="ms" icon="📡" color="#10b981" />
-        <MetricCard label="AI Provider" value="Groq" icon="🤖" color="#f59e0b" />
+        <MetricCard label="Provider" value="Groq" icon="🤖" color="#f59e0b" />
         <MetricCard label="Status" value="Online" icon="🟢" color="#10b981" />
       </motion.div>
     </div>
